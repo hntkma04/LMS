@@ -327,6 +327,8 @@ All settings are read from environment variables (or a `.env` file). Copy [`.env
 | `CELERY_TASK_ALWAYS_EAGER` | Run tasks inline, with no worker | `False` |
 | `FRONTEND_URL` | Web app URL, used in emails, CORS and CSRF | `http://localhost:5173` |
 | `BACKEND_PUBLIC_URL` | Public URL of this API | `http://localhost:8000` |
+| `LOGIN_MAX_FAILED_ATTEMPTS` | Invalid passwords allowed before Redis-backed account lockout | `3` |
+| `LOGIN_LOCKOUT_MINUTES` | TTL of the Redis login lockout and attempt window | `5` |
 | `CSRF_TRUSTED_ORIGINS` | Comma-separated trusted origins | `https://app.example.com` |
 | `CORS_ALLOWED_ORIGINS` | Extra comma-separated CORS origins | `https://app.example.com` |
 | `CORS_ALLOW_ALL_ORIGINS` | Allow any origin | `False` |

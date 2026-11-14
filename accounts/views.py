@@ -2,9 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from datetime import timedelta
+import math
+import time
 import uuid
 
 from django.conf import settings
+from django.core.cache import cache
 from django.core.signing import TimestampSigner, BadSignature, SignatureExpired
 from django.utils import timezone
 from rest_framework.views import APIView
@@ -52,6 +55,15 @@ REINVITE_COOLDOWN_HOURS = 24
 
 MSG_ACTIVATE_ACCOUNT = "Please accept your invitation to activate your account."
 MSG_LOGIN_INVITE_EXPIRED = "Your invitation has expired. Please contact your administrator."
+
+
+def _login_lockout_cache_keys(user):
+    prefix = f"login_lockout:v1:{user.pk}"
+    return f"{prefix}:attempts", f"{prefix}:locked"
+
+
+def _clear_login_lockout(user):
+    cache.delete_many(_login_lockout_cache_keys(user))
 
 
 def check_user_active_and_invited_status(user):
@@ -350,14 +362,78 @@ class LoginView(APIView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "auth_login"
 
+    def _get_retry_after(self, lock_key):
+        locked_until = cache.get(lock_key)
+        if locked_until is None:
+            return None
+
+        try:
+            retry_after = math.ceil(float(locked_until) - time.time())
+        except (TypeError, ValueError):
+            cache.delete(lock_key)
+            return None
+
+        if retry_after <= 0:
+            cache.delete(lock_key)
+            return None
+        return retry_after
+
+    def _record_failed_login(self, attempts_key, lock_key):
+        max_attempts = max(1, settings.LOGIN_MAX_FAILED_ATTEMPTS)
+        lockout_seconds = max(1, settings.LOGIN_LOCKOUT_MINUTES * 60)
+
+        try:
+            if cache.add(attempts_key, 1, timeout=lockout_seconds):
+                attempts = 1
+            else:
+                attempts = cache.incr(attempts_key)
+        except (ValueError, TypeError):
+            # The key may have expired between add() and incr(). Start a new
+            # attempt window instead of failing the login endpoint.
+            cache.set(attempts_key, 1, timeout=lockout_seconds)
+            attempts = 1
+
+        if not isinstance(attempts, int) or attempts < max_attempts:
+            return None
+
+        locked_until = time.time() + lockout_seconds
+        cache.set(lock_key, locked_until, timeout=lockout_seconds)
+        cache.delete(attempts_key)
+        return lockout_seconds
+
+    def _lockout_response(self, retry_after):
+        minutes = max(1, math.ceil(retry_after / 60))
+        return Response(
+            {
+                "detail": (
+                    "Too many failed login attempts. "
+                    f"Please try again in {minutes} minute(s)."
+                ),
+                "retry_after": retry_after,
+            },
+            status=status.HTTP_429_TOO_MANY_REQUESTS,
+            headers={"Retry-After": str(retry_after)},
+        )
+
     def _validate_credentials(self, email, password):
         try:
             user = User.objects.get(email=email)
-            if user.check_password(password):
-                return user
         except User.DoesNotExist:
-            pass
-        return None
+            return None, None
+
+        attempts_key, lock_key = _login_lockout_cache_keys(user)
+        retry_after = self._get_retry_after(lock_key)
+        if retry_after is not None:
+            return None, self._lockout_response(retry_after)
+
+        if not user.check_password(password):
+            retry_after = self._record_failed_login(attempts_key, lock_key)
+            if retry_after is not None:
+                return None, self._lockout_response(retry_after)
+            return None, None
+
+        _clear_login_lockout(user)
+        return user, None
 
     def _validate_user_status(self, user):
         return check_user_active_and_invited_status(user)
@@ -365,7 +441,10 @@ class LoginView(APIView):
     @extend_schema(
         tags=["Authentication"],
         summary="Login",
-        description="Authenticate with email and password to obtain access and refresh tokens.",
+        description=(
+            "Authenticate with email and password to obtain access and refresh tokens. "
+            "The account is temporarily locked after repeated invalid passwords."
+        ),
         request=LoginSerializer,
         responses={
             200: inline_serializer(
@@ -377,6 +456,7 @@ class LoginView(APIView):
                 },
             ),
             400: OpenApiResponse(description="Invalid credentials."),
+            429: OpenApiResponse(description="Account temporarily locked after too many failed attempts."),
         },
     )
     def post(self, request):
@@ -386,7 +466,10 @@ class LoginView(APIView):
         email = str(validated_data.get("email", ""))
         password = str(validated_data.get("password", ""))
 
-        user = self._validate_credentials(email, password)
+        user, lockout_response = self._validate_credentials(email, password)
+
+        if lockout_response is not None:
+            return lockout_response
         if not user:
             return Response(
                 {"detail": "Invalid credentials."}, status=status.HTTP_400_BAD_REQUEST
@@ -556,6 +639,7 @@ class ResetPasswordView(APIView):
         # Set the new password in the database
         user.set_password(password)
         user.save()
+        _clear_login_lockout(user)
 
         if db_token:
             db_token.is_used = True
@@ -627,6 +711,7 @@ class ChangePasswordView(APIView):
         new_password = serializer.validated_data["new_password"]
         request.user.set_password(new_password)
         request.user.save(update_fields=["password"])
+        _clear_login_lockout(request.user)
 
         return Response(
             {"detail": "Password changed successfully."},
@@ -792,6 +877,7 @@ class AcceptInviteView(APIView):
         user.is_active = True
         user.status = User.STATUS_ACTIVE
         user.save()
+        _clear_login_lockout(user)
 
         if db_token:
             db_token.is_used = True

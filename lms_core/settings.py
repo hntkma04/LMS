@@ -112,6 +112,10 @@ CSRF_TRUSTED_ORIGINS = list(
 )
 BACKEND_PUBLIC_URL = get_secret("BACKEND_PUBLIC_URL", default="")
 
+# Account lockout after repeated invalid password attempts.
+LOGIN_MAX_FAILED_ATTEMPTS = get_secret("LOGIN_MAX_FAILED_ATTEMPTS", default=3, cast=int)
+LOGIN_LOCKOUT_MINUTES = get_secret("LOGIN_LOCKOUT_MINUTES", default=5, cast=int)
+
 
 # ── EMAIL SETTINGS ────────────────────────────────────────────────────────────
 EMAIL_BACKEND = get_secret("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
