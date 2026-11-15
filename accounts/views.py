@@ -359,8 +359,9 @@ class LoginView(APIView):
     """
 
     permission_classes = [AllowAny]
-    throttle_classes = [ScopedRateThrottle]
-    throttle_scope = "auth_login"
+    # Per-IP throttling is intentionally disabled for login. Repeated invalid
+    # credentials are handled by the Redis-backed account lockout below.
+    throttle_classes = []
 
     def _get_retry_after(self, lock_key):
         locked_until = cache.get(lock_key)
@@ -378,6 +379,7 @@ class LoginView(APIView):
             return None
         return retry_after
 
+    #Lock tài khoản
     def _record_failed_login(self, attempts_key, lock_key):
         max_attempts = max(1, settings.LOGIN_MAX_FAILED_ATTEMPTS)
         lockout_seconds = max(1, settings.LOGIN_LOCKOUT_MINUTES * 60)

@@ -19,7 +19,6 @@ def _limit(scope):
 @pytest.mark.parametrize(
     "view, scope",
     [
-        (LoginView, "auth_login"),
         (ForgotPasswordView, "auth_password_reset_email"),
         (ResetPasswordView, "auth_token"),
         (AcceptInviteView, "auth_token"),
@@ -30,22 +29,9 @@ def test_auth_views_are_throttled(view, scope):
     assert scope in settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]
 
 
-@pytest.mark.django_db
-def test_login_is_rate_limited_per_client():
-    client = APIClient()
-    url = reverse("login")
-    payload = {"email": "nobody@example.com", "password": "wrong-password"}
-
-    for _ in range(_limit("auth_login")):
-        response = client.post(url, payload, format="json")
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
-
-    response = client.post(url, payload, format="json")
-    assert response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
-
-    # A different client IP has its own budget
-    response = client.post(url, payload, format="json", REMOTE_ADDR="10.0.0.2")
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
+def test_login_has_no_per_ip_rate_limit(settings):
+    assert LoginView.throttle_classes == []
+    assert "auth_login" not in settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]
 
 
 @pytest.mark.django_db
