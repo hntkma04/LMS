@@ -41,6 +41,7 @@ urlpatterns = [
     path(API_ORG_PREFIX, include("analytics.urls")),
     path("api/", include("curriculum.urls")),
     path("api/", include("gamification.urls")),
+    path("api/chatbot/", include("chatbot.urls")),
     # ── OpenAPI schema + docs ─────────────────────────────────────────────────
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(

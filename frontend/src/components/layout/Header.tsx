@@ -5,6 +5,7 @@ import { useState, useEffect, useRef, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import { Menu, GraduationCap, UsersRound, Building2 } from 'lucide-react'
+import AskAiButton from '@/components/chatbot/AskAiButton'
 import { getStoredUser, clearStoredUser, setStoredUser, getStoredRefreshToken } from '@/lib/auth'
 import { ROLE_PATHS } from '@/lib/constants'
 import type { UserRole } from '@/lib/auth'
@@ -90,8 +91,9 @@ export default function Header({ title, onToggleSidebar }: Readonly<HeaderProps>
         )}
         <h1 className="text-base font-semibold text-slate-800">{title}</h1>
       </div>
-      <div className="flex items-center gap-1">
-      <div className="relative" ref={triggerRef}>
+      <div className="flex items-center gap-3">
+        <AskAiButton />
+        <div className="relative" ref={triggerRef}>
         <button
           type="button"
           onClick={() => setDropdownOpen(!dropdownOpen)}

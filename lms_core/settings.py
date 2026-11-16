@@ -175,6 +175,7 @@ INSTALLED_APPS = [
     "curriculum",
     "gamification",
     "analytics",
+    "chatbot",
     "storages",
     "django_celery_results",
 ]

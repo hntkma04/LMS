@@ -185,6 +185,15 @@ export const config = {
       quizzes: {
         submit: (quizId: string | number) => `/quizzes/${quizId}/submit/`,
       },
+
+      /* -- Chatbot -- */
+      chatbot: {
+        conversations: '/chatbot/conversations/',
+        conversationDetail: (id: string | number) => `/chatbot/conversations/${id}/`,
+        chat: '/chatbot/conversations/chat/',
+        sendMessage: (id: string | number) => `/chatbot/conversations/${id}/messages/`,
+        clear: (id: string | number) => `/chatbot/conversations/${id}/clear/`,
+      },
     },
   },
 }

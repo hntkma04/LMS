@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import { Menu, GraduationCap, Search } from 'lucide-react'
+import AskAiButton from '@/components/chatbot/AskAiButton'
 import { getStoredUser, clearStoredUser } from '@/lib/auth'
 import { toTitleCase } from '@/lib/format'
 import { useRoleSwitcher } from '@/hooks/useRoleSwitcher'
@@ -65,7 +66,8 @@ export default function TrainerHeader({ onToggleSidebar }: Readonly<TrainerHeade
         </div>
       </div>
 
-      <div className="flex items-center gap-2 ml-auto shrink-0">
+      <div className="flex items-center gap-3 ml-auto shrink-0">
+        <AskAiButton />
         <div className="relative" ref={triggerRef}>
           <button
             type="button"

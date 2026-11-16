@@ -3,6 +3,8 @@
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { TenantProvider } from '@/context/TenantContext'
+import { ChatbotProvider } from '@/context/ChatbotContext'
+import ChatAside from '@/components/chatbot/ChatAside'
 import ToastContainer from '@/components/ui/Toast'
 import ThemeManager from '@/components/ThemeManager'
 import Footer from '@/components/layout/Footer'
@@ -36,12 +38,13 @@ import ChangePassword from '@/features/shared/ChangePassword'
 function App() {
   return (
     <TenantProvider>
-      <ToastContainer />
-      <BrowserRouter>
-      <ThemeManager />
-      <div className="h-screen flex flex-col">
-      <div className="flex-1 min-h-0 overflow-auto">
-      <Routes>
+      <ChatbotProvider>
+        <ToastContainer />
+        <BrowserRouter>
+        <ThemeManager />
+        <div className="h-screen flex flex-col">
+        <div className="flex-1 min-h-0 overflow-auto">
+        <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
@@ -127,7 +130,9 @@ function App() {
       </div>
       <Footer />
       </div>
+      <ChatAside />
     </BrowserRouter>
+    </ChatbotProvider>
     </TenantProvider>
   )
 }
